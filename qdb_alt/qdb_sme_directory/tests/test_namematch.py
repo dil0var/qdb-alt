@@ -40,6 +40,13 @@ class SameCompany(unittest.TestCase):
         ]:
             self.assertFalse(same_company(me, candidate), (me, candidate))
 
+    def test_short_words_are_not_a_brand_and_one_word_names_take_no_extra_words(self):
+        self.assertFalse(same_company("La Casa Industry", "La Mia Casa"))
+        self.assertFalse(same_company("Doha Academy", "Qatar Academy Doha"))
+        self.assertTrue(same_company("Qatar Detergents", "Qatar Detergent Company (QDC)"))
+        self.assertFalse(same_company("Padel In Sports", "Padel - Agon Sports Centre"))   # IN must be there
+        self.assertTrue(same_company("Gulf Grc And Trading", "Gulf G. R. C. Trading"))        # letters apart
+
 
 class Brand(unittest.TestCase):
     def test_spelling_variants_of_the_brand(self):

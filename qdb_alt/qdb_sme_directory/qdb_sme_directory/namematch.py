@@ -39,6 +39,7 @@ def norm(name: str | None) -> str:
     s = re.sub(r"['’`]", "", str(name or "").upper()).replace("&", " AND ")  # S'HAIL -> SHAIL
     s = re.sub(r"\(.*?\)", " ", s)
     s = re.sub(r"[^A-Z0-9 ]", " ", s)
+    s = re.sub(r"\b([A-Z])\s+(?=[A-Z]\b)", r"\1", s)   # letters written apart: G. R. C. -> GRC, W.L.L -> WLL
     return " ".join(w for w in s.split() if w not in LEGAL)
 
 
@@ -58,7 +59,14 @@ def _generic(w: str) -> bool:
 
 @lru_cache(maxsize=None)
 def special_words(name: str) -> tuple[str, ...]:
-    return tuple(w for w in norm(name).split() if not _generic(w) and len(w) > 1)
+    return tuple(w for w in norm(name).split() if not _generic(w) and len(w) > 1)   # "L L C": letters do not count
+
+
+def brand_index(special: tuple[str, ...]) -> int:
+    """The brand is the first distinctive word of three letters or more: "LA", "IN", "DR" are never the
+    brand ("La Casa" is not "La Mia Casa") but still have to be there ("Padel In Sports" is not
+    "Padel - Agon Sports Centre")."""
+    return next((i for i, w in enumerate(special) if len(w) > 2), 0)
 
 
 def _consonants(w: str) -> str:
@@ -92,7 +100,7 @@ def brand_match(me: str, candidate: str) -> bool:
     special = special_words(me)
     if not special:
         return False
-    w, ours = special[0], set(norm(me).split())
+    w, ours = special[brand_index(special)], set(norm(me).split())
     words = norm(candidate).split()
     for i, c in enumerate(words):
         if (_same_word(w, c, ours, strict=True)
@@ -108,15 +116,18 @@ def _same_company(me: str, candidate: str) -> bool:
     if not special or not b:
         return False
     words, ours = b.split(), set(a.split())
-    if not all(any(_same_word(w, c, ours, k == 0) for c in words) for k, w in enumerate(special)):
+    bi = brand_index(special)
+    if not all(any(_same_word(w, c, ours, k == bi) for c in words) for k, w in enumerate(special)):
         return False
-    first = next(i for i, c in enumerate(words) if _same_word(special[0], c, ours, True))
+    first = next(i for i, c in enumerate(words) if _same_word(special[bi], c, ours, True))
     if any(_foreign(c, ours) for c in words[:first]):
         return False
     if b.startswith(a + " ") and len(a.split()) >= 2:   # a branch or campus: "Doha Academy Al Waab Campus"
         return True
-    if len(special) == 1:                                 # one distinctive word: nearly the same name
-        return not any(_foreign(c, ours) for c in words) and fuzz.token_sort_ratio(a, b) >= 75
+    if len(special) == 1:          # one distinctive word: the same name, no words of its own
+        extra = [c for c in words if len(c) > 2                # ("Qatar Academy Doha" is not "Doha Academy")
+                 and not any(_same_word(o, c, ours, False) or _same_word(c, o, ours, False) for o in ours)]
+        return not extra and fuzz.token_sort_ratio(a, b) >= 75
     return fuzz.token_sort_ratio(a, b) >= 50
 
 
