@@ -180,6 +180,12 @@ HTML. Three measured facts drive the code, each with a test:
   a different `entityId` beside it is ignored and you get the first company's
   history back. That was measured, and it is why the backfill costs two
   requests per company rather than one.
+- **The verification token is no longer in the page.** Since October 2026
+  the portal's pages carry no `__RequestVerificationToken` input; the
+  portal's own script fetches one from `/_layout/tokenhtml`. The fetcher
+  does the same when a page has none, once per session, and still prefers a
+  token found in the page. Without this the crawl stops at the first grid
+  call (`doctor` step 4).
 
 `normalize.py` and `match.py` are copies of the Monaqasat ones, with `cr_root`
 extended for the `QFC/00326` form — QFC registrations run in their own sequence,

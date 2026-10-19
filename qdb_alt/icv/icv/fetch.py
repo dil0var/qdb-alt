@@ -96,8 +96,18 @@ class Portal:
         try:
             self.token = parse.verification_token(html)
         except parse.PageShapeError:
-            pass          # some pages carry no token; keep the previous one
+            # Since October 2026 the portal no longer puts the token in the
+            # page: its own script asks /_layout/tokenhtml for it. Do the same
+            # when we hold none yet; otherwise keep the one we have.
+            if not self.token:
+                self.refresh_token()
         return html
+
+    def refresh_token(self) -> str:
+        """Fetch a verification token the way the portal's own script does."""
+        r = self._send("GET", urljoin(self.base + "/", "_layout/tokenhtml"))
+        self.token = parse.verification_token(r.text)
+        return self.token
 
     def grid(self, cfg: parse.GridConfig, page: int = 1,
              page_size: int = 100, search: str = "",

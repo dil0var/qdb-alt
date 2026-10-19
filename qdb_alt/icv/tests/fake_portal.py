@@ -166,14 +166,21 @@ class FakePortal:
         self.requests: list[str] = []
         self.fail_after: int | None = None     # simulate a dropped sweep
         self.headers: dict[str, str] = {}      # a requests.Session has these
+        # The live portal stopped embedding the token in its pages in
+        # October 2026; it serves it from /_layout/tokenhtml instead.
+        self.token_in_page = True
+
+    def _token_input(self) -> str:
+        if not self.token_in_page:
+            return ""
+        return f'<input name="__RequestVerificationToken" value="{self.TOKEN}"/>'
 
     # -- what the crawl sees -------------------------------------------
 
     def listing_html(self) -> str:
         layouts = _layouts("cfg:list", "", "icv_latestcertificate DESC",
                            "view-list", "list")
-        return (f'<html><body><input name="__RequestVerificationToken" '
-                f'value="{self.TOKEN}"/>'
+        return (f'<html><body>{self._token_input()}'
                 f'<div class="entity-grid" data-get-url="{GRID_URL}" '
                 f'data-ref-entity="account" data-selected-view="view-list" '
                 f'data-view-layouts="{layouts}"></div></body></html>')
@@ -185,8 +192,7 @@ class FakePortal:
                     f'data-ref-id="{guid}" data-ref-rel="{rel}" '
                     f'data-selected-view="{view}" data-view-layouts='
                     f'"{_layouts(secure, rel, sort, view, guid)}"></div>')
-        return (f'<html><body><input name="__RequestVerificationToken" '
-                f'value="{self.TOKEN}"/>'
+        return (f'<html><body>{self._token_input()}'
                 + grid(f"cfg:services:{guid}", REL_GOODS_SERVICES,
                        "icv_servicetype ASC", "view-serv")
                 + grid(f"cfg:goods:{guid}", REL_GOODS_SERVICES,
@@ -204,6 +210,9 @@ class FakePortal:
                 and len(self.requests) > self.fail_after):
             return _Response(503)
         if method == "GET":
+            if url.endswith("/_layout/tokenhtml"):
+                return _Response(200, f'<input name="__RequestVerificationToken" '
+                                      f'type="hidden" value="{self.TOKEN}" />')
             if "supplier-score-history" in url:
                 guid = url.split("id=")[1].split("&")[0]
                 if guid not in self.companies:
