@@ -186,6 +186,16 @@ HTML. Three measured facts drive the code, each with a test:
   does the same when a page has none, once per session, and still prefers a
   token found in the page. Without this the crawl stops at the first grid
   call (`doctor` step 4).
+- **The grid no longer searches.** Also since October 2026 the supplier grid
+  ignores its `search` field and answers every term with the first page of
+  the list. The page looks companies up through the portal's Web API,
+  `/_api/accounts`, and so does `search` now: a CR number is matched exactly
+  on its root (`029309` and `29309/1` find 29309, `QFC/00326` finds only the
+  QFC company), anything else as part of the name. If the Web API does not
+  answer, it falls back to the grid. `refresh --cr` keeps only the company
+  whose CR root is the one asked for, and stores nothing otherwise -- before,
+  a search that was ignored would have stored strangers against the
+  applicant.
 
 `normalize.py` and `match.py` are copies of the Monaqasat ones, with `cr_root`
 extended for the `QFC/00326` form — QFC registrations run in their own sequence,
